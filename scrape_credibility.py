@@ -15,12 +15,30 @@ Requirements:
 
 import requests
 from difflib import SequenceMatcher
+import time
+import threading
 import json
 import sys
+
+API_SLEEP = 0.5
+
+_rate_lock = threading.Lock()
+_last_call_time = 0.0
+
+def _throttle():
+    """Block until at least API_SLEEP seconds have passed since the last
+    OpenAlex request, across all threads."""
+    global _last_call_time
+    with _rate_lock:
+        wait = API_SLEEP - (time.monotonic() - _last_call_time)
+        if wait > 0:
+            time.sleep(wait)
+        _last_call_time = time.monotonic()
 
 
 def find_paper(title: str):
     """Search OpenAlex for a paper by title. Returns the best match or None."""
+    _throttle()
     response = requests.get(
         "https://api.openalex.org/works",
         params={
@@ -33,7 +51,6 @@ def find_paper(title: str):
     if response.status_code != 200:
         print(f"[ERROR] OpenAlex works API returned {response.status_code}")
         return None
-
     results = response.json().get("results", [])
     if not results:
         return None
@@ -54,6 +71,7 @@ def find_paper(title: str):
 
 def fetch_author_metrics(openalex_author_url: str) -> dict:
     """Fetch full author record from OpenAlex including citation stats."""
+    _throttle()
     response = requests.get(openalex_author_url)
     if response.status_code != 200:
         return {}
@@ -109,7 +127,7 @@ def extract_authors(paper: dict, target_name: str | None = None) -> list[dict]:
 
 
 def score_author(author: dict) -> dict:
-    """Compute a 0–100 credibility score for a single author."""
+    """Compute a 0-100 credibility score for a single author."""
     score = 0
     reasons = []
 
