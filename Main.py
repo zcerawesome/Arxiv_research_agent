@@ -22,6 +22,15 @@ class AgentState(TypedDict):
     paper_stream: io.BytesIO 
     agent: AI_Agent
 
+relevance_schema = {
+    "type": "object",
+    "properties": {
+        "relevancy": {"type": "boolean"},
+        "reason": {"type": "string"},
+        "confidence": {"type": "integer"},
+    },
+    "required": ["relevancy", "reason", "confidence"],
+}
 
 def _parse_json_response(content: str) -> dict:
     """Strip optional ```json fences before parsing an LLM JSON reply."""
@@ -99,7 +108,7 @@ if __name__ == '__main__':
     filter_llm = ChatOllama(
         model="llama3.2",
         temperature=0.7,
-        format="json",  # constrain Ollama to emit syntactically valid JSON
+        format=relevance_schema,  # constrain Ollama to emit syntactically valid JSON
     )
     builder = StateGraph(AgentState)
     builder.add_node("filter_llm", filter_papers)
@@ -120,7 +129,7 @@ if __name__ == '__main__':
     Gemini_agents = AI_Agent(gemini_agents_list)
 
 
-    papers, success, total = find_and_score_papers(n=100)
+    papers, success, total = find_and_score_papers(n=20)
 
     filtered_papers = []
     for paper in papers:
@@ -137,5 +146,6 @@ if __name__ == '__main__':
             paper_title = paper['title'] + paper['arxiv_id']
             with open(f'saved_papesr/{paper_title}.txt', 'w') as f:
                 f.write(result["messages"][-1].content)
+                print('Successfully Wrote about ' + paper['title'])
         except:
             continue

@@ -15,6 +15,7 @@ Requirements:
 
 import requests
 from difflib import SequenceMatcher
+from datetime import datetime
 import time
 import threading
 import json
@@ -39,10 +40,13 @@ def _throttle():
 def find_paper(title: str):
     """Search OpenAlex for a paper by title. Returns the best match or None."""
     _throttle()
+    # OpenAlex's filter mini-language treats unescaped commas as filter
+    # separators (raising a 400), so quote the value to search it literally.
+    safe_title = title.replace('"', "'")
     response = requests.get(
         "https://api.openalex.org/works",
         params={
-            "filter": f"title.search:{title}",
+            "filter": f'title.search:"{safe_title}"',
             "per_page": 5,
             "select": "id,title,authorships,cited_by_count,publication_year,"
                       "open_access,primary_location,is_retracted"
@@ -72,7 +76,10 @@ def find_paper(title: str):
 def fetch_author_metrics(openalex_author_url: str) -> dict:
     """Fetch full author record from OpenAlex including citation stats."""
     _throttle()
-    response = requests.get(openalex_author_url)
+    # author_stub["id"] is the openalex.org landing-page URL, not the API
+    # endpoint — hitting it directly returns a 403 HTML page, not JSON.
+    api_url = openalex_author_url.replace("https://openalex.org/", "https://api.openalex.org/authors/")
+    response = requests.get(api_url)
     if response.status_code != 200:
         return {}
     return response.json()
@@ -185,16 +192,26 @@ def score_paper(paper: dict) -> dict:
     score = 0
     reasons = []
 
-    # Citation count of the paper itself
+    # Citation count of the paper itself, normalized by age. A paper
+    # published this year hasn't had time to accrue citations the way an
+    # older paper has, so raw counts unfairly punish recent work.
     cited = paper.get("cited_by_count", 0)
-    if cited >= 1000:
-        score += 35; reasons.append(f"Paper cited {cited:,} times (highly influential)")
-    elif cited >= 100:
-        score += 25; reasons.append(f"Paper cited {cited:,} times (well received)")
-    elif cited >= 10:
-        score += 15; reasons.append(f"Paper cited {cited:,} times (gaining traction)")
+    year = paper.get("publication_year")
+    age_years = (datetime.now().year - year) if year else None
+
+    if age_years is not None and age_years <= 0:
+        score += 20
+        reasons.append(f"Paper cited {cited:,} times (published this year — too recent to judge by citations)")
     else:
-        score += 5;  reasons.append(f"Paper cited {cited:,} times (limited reception so far)")
+        rate = cited / age_years if age_years else cited
+        if rate >= 50:
+            score += 35; reasons.append(f"Paper cited {cited:,} times (~{rate:.1f}/yr — highly influential)")
+        elif rate >= 10:
+            score += 25; reasons.append(f"Paper cited {cited:,} times (~{rate:.1f}/yr — well received)")
+        elif rate >= 2:
+            score += 15; reasons.append(f"Paper cited {cited:,} times (~{rate:.1f}/yr — gaining traction)")
+        else:
+            score += 5;  reasons.append(f"Paper cited {cited:,} times (~{rate:.1f}/yr — limited reception so far)")
 
     # Published in a peer-reviewed venue
     location = paper.get("primary_location") or {}
