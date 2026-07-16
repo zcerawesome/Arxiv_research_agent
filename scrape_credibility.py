@@ -20,6 +20,7 @@ import time
 import threading
 import json
 import sys
+import os
 
 API_SLEEP = 1.0
 
@@ -49,7 +50,8 @@ def find_paper(title: str):
             "filter": f'title.search:"{safe_title}"',
             "per_page": 5,
             "select": "id,title,authorships,cited_by_count,publication_year,"
-                      "open_access,primary_location,is_retracted"
+                      "open_access,primary_location,is_retracted",
+            "api_key": os.environ["OPEN_ALEX_API_KEY"]
         }
     )
     if response.status_code != 200:

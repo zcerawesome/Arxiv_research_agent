@@ -38,9 +38,9 @@ Summarize Results:
     Respond with ONLY a single JSON object, using double-quoted keys/strings and no
     markdown code fences, in exactly this format:
     {{
-        "Key Findings" : "2-4 sentences summarizing the key findings and if the results are valid or overfitted"
-        "Methodology" : "2-4 sentences outlining the methods used and why"
-        "criticisms" : "2-4 sentences describing weaknesses in the paper's methodology or results"
+        "Key Findings" : "2-4 sentences summarizing the key findings and if the results are valid or overfitted",
+        "Methodology" : "2-4 sentences outlining the methods used and why",
+        "criticisms" : "2-4 sentences describing weaknesses in the paper's methodology or results",
     }}
 
     Do not include any text besides the JSON

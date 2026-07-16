@@ -12,8 +12,9 @@ import json
 import os
 from dotenv import dotenv_values
 import pickle
+import re
 
-SCORE_LIMIT = 70
+SCORE_LIMIT = 0
 
 class AgentState(TypedDict):
     messages: Annotated[list, operator.add]  # messages accumulate
@@ -104,6 +105,7 @@ if __name__ == '__main__':
 
     config = dotenv_values()
     os.environ["GOOGLE_API_KEY"] = config["GOOGLE_API_KEY"]
+    os.environ["OPEN_ALEX_API_KEY"] = config["OPEN_ALEX_API_KEY"]
 
     filter_llm = ChatOllama(
         model="llama3.2",
@@ -131,6 +133,8 @@ if __name__ == '__main__':
 
     papers, success, total = find_and_score_papers(n=20)
 
+    print('Number of successfully found papers ', success)
+
     if success == 0:
         print('ERROR failed to scrape research papers')
         exit(0)
@@ -141,17 +145,29 @@ if __name__ == '__main__':
     for paper in papers:
         if paper['Score'] >= SCORE_LIMIT:
             filtered_papers.append(paper)
+    print(len(filtered_papers))
     for paper in filtered_papers:
         try:
             result = graph.invoke({
                 'research_goal': user_prompt,
-                'paper': papers[0],
-                'paper_stream': mp.get_pdf_bytes(papers[0]['arxiv_id']),
+                'paper': paper,
+                'paper_stream': mp.get_pdf_bytes(paper['arxiv_id']),
                 'agent': Gemini_agents
             })
             paper_title = paper['title'] + paper['arxiv_id']
-            with open(f'saved_papesr/{paper_title}.txt', 'w') as f:
-                f.write(result["messages"][-1].content)
+            parsed = _parse_json_response(result["messages"][-1].content)
+            if 'relevancy' in parsed:
+                print(f'Unsuccessfully Wrote about {paper["title"]}: Not relevant')
+                continue
+            with open(f'saved_papers/{paper_title}.txt', 'w') as f:
+                try:
+                    key_findings = wrap_by_words('Key Findings:\n' + parsed['Key Findings']) + '\n\n'
+                    methods = wrap_by_words('Methods:\n' + parsed['Methodology']) + '\n\n'
+                    critiques = wrap_by_words('Critiques:\n' + parsed['criticisms']) + '\n\n'
+                    f.writelines([key_findings, methods, critiques])
+                except:
+                    f.write(result["messages"][-1].content)
+                f.write(paper['url'])
                 print('Successfully Wrote about ' + paper['title'])
         except:
             continue
