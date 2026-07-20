@@ -100,23 +100,27 @@ if __name__ == '__main__':
 
     graph = code_agent.compile()
 
-    file_num = 0
+    for i, file in enumerate(files):
+        with open(f'saved_papers/{file}', 'r') as f:
+            file = yaml.safe_load(f)
 
-    with open(f'saved_papers/{files[file_num]}', 'r') as f:
-        file = yaml.safe_load(f)
-
-    response = graph.invoke({
-        'messages': [],
-        'data': data,
-        'files': [],
-        'paper': file,
-        'ROLES': ROLES,
-        'decision_tree': decision_tree,
-        'code_agent': code_llm,
-        'process': process,
-        'attempts': 0,
-        'idx': file_num
-    })
-
-    with open('test.py', 'w') as f:
-        f.write(response['code'])
+        file_path = ''
+        while True:
+            file_path = input('Enter what you would want to name the python file (exclude .py): ')
+            if os.path.exists('saved_scripts/' + file_path + '.py'):
+                print('Enter a name that does not already exist: ')
+                continue
+            break
+        response = graph.invoke({
+            'messages': [],
+            'data': data,
+            'files': [],
+            'paper': file,
+            'ROLES': ROLES,
+            'decision_tree': decision_tree,
+            'code_agent': code_llm,
+            'process': process,
+            'attempts': 0,
+            'idx': i,
+            'file_path': file_path
+        })

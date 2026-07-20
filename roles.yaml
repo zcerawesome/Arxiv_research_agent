@@ -147,6 +147,10 @@ Code Generator:
       interval=1d, 1m, etc.
     )
 
+    To plot the data use the vectorbt plot().show() method:
+
+    portflio.plot().show()
+
     ```
 
     Use the vectorbt library to backtest the strategy. Below are the actual classes/methods
@@ -162,7 +166,8 @@ Code Generator:
     vectorbt's defaults only for fields the strategy leaves unspecified), and print the resulting
     performance stats. Every line must implement the actual strategy - never write placeholder
     logic, TODO comments, "replace with actual..." comments, or read from a local CSV/file that
-    doesn't exist.
+    doesn't exist.Additionally, the code must backtest the strategy out-of-sample
+    with a different date range and generate plots of the result of the portflio/simulation.
 
     Respond with ONLY raw Python source code, starting directly with the first import statement.
     Do not wrap the code in markdown code fences (no ``` anywhere in your response, at the start,

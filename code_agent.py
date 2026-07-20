@@ -28,6 +28,7 @@ class AgentState(TypedDict):
     context: str
     code: str
     idx: int
+    file_path: str
 
 def run_command(state: AgentState, command: str):
     process = state['process']
@@ -132,7 +133,7 @@ def fix_syntax(state: AgentState) -> dict:
     return {"messages": [response], 'code': code}
 
 def evaluate_code(state: AgentState) -> dict:
-    path = f'saved_scripts/{state["idx"]}.py'
+    path = f'saved_scripts/{state["file_path"]}.py'
     with open(path, 'w') as f:
         f.write(state['code'])
     command = f'python3 {path}'
